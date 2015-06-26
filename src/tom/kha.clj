@@ -9,9 +9,9 @@
 ;; the soup
 ;;
 
-(defn soup
+(defn start
   ([dependencies]
-   (soup dependencies {}))
+   (start dependencies {}))
   ([dependencies config]
    ((graph/compile (apply merge dependencies)) {:config config})))
 
@@ -46,8 +46,8 @@
 (def config {:db {:url "jdbc:something"}
              :http {:port 3000}})
 
-(def graph (soup [database* http* routes*] config))
+(def graph (start [database* http* routes*] config))
 
-(println "-->")
+(println)
 (println "web server:" (:db graph))
 (println "database dependencies:" (dependencies database*))

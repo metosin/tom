@@ -9,13 +9,21 @@
 ;; the soup
 ;;
 
-(defn soup
-  ([dependencies]
-   (soup dependencies {}))
-  ([dependencies config]
-   ((graph/compile dependencies) {:config config})))
+(def ^:dynamic *components* nil)
 
-(defn strip [x]
+(defn start
+  ([dependencies]
+   (start dependencies {}))
+  ([dependencies config]
+   (binding [*components* (atom [])]
+     (let [g ((graph/compile dependencies) {:config config})]
+       (with-meta g {::shutdown (reverse @*components*)})))))
+
+(defn stop [soup]
+  (doseq [c (::shutdown (meta soup))]
+    (println "->stop" c)))
+
+(defn- strip [x]
   (walk/postwalk
     (fn [x]
       (if (map? x)
@@ -26,33 +34,35 @@
 (defn dependencies [x]
   (some-> x pfnk/input-schema strip))
 
+(defmacro module [name [s a & rest]]
+  (let [injection `((do
+                      (println "->start" ~name)
+                      (swap! *components* conj ~name)))]
+    (concat [s a] injection rest)))
+
 ;;
 ;; Spike
 ;;
 
-(def database* (fnk [[:config [:db url :- String]]]
-                 (println "starting the database!")
-                 {:conn (str "connected to " url)}))
+(def database* (module :db (fnk [[:config [:db url :- String]]]
+                             {:conn (str "connected to " url)})))
 
-(def http*     (fnk [[:config [:http port :- Long]] routes]
-                 (println "starting the server!")
-                 {:server (str "http-server running at " port ", serving " routes)}))
+(def http*     (module :http (fnk [[:config [:http port :- Long]] routes]
+                               {:server (str "http-server running at " port ", serving " routes)})))
 
-(def routes*   (fnk [[:db conn]]
-                 (println "compiling the routes!")
-                 (str "a route using the db conn: " conn)))
-
+(def routes*   (module :routes (fnk [[:db conn]]
+                                 (str "a route using the db conn: " conn))))
 
 (def config {:db {:url "jdbc:something"}
              :http {:port 3000}})
 
-(def graph (soup {:db database*
+(def graph (start {:db database*
                   :http http*
                   :routes routes*} config))
 
-(println "-->")
+(println)
 (println "web server:" (:db graph))
 (println "database dependencies:" (dependencies database*))
+(println)
 
-(keys (meta database*))
-(keys (meta http*))
+(stop graph)
