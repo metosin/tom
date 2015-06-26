@@ -9,9 +9,9 @@
 ;; the soup
 ;;
 
-(defn kai
+(defn soup
   ([dependencies]
-   (kai dependencies {}))
+   (soup dependencies {}))
   ([dependencies config]
    ((graph/compile (apply merge dependencies)) {:config config})))
 
@@ -46,7 +46,7 @@
 (def config {:db {:url "jdbc:something"}
              :http {:port 3000}})
 
-(def graph (kai [database* http* routes*] config))
+(def graph (soup [database* http* routes*] config))
 
 (println "-->")
 (println "web server:" (:db graph))
